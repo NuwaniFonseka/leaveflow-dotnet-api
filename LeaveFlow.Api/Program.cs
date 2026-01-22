@@ -13,7 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// DbContext
+// =======================
+// DATABASE (PostgreSQL - Cloud SQL)
+// =======================
+
 builder.Services.AddDbContext<LeaveFlowDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")
@@ -101,6 +104,16 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // =======================
+// APPLY EF CORE MIGRATIONS (REQUIRED FOR CLOUD RUN)
+// =======================
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LeaveFlowDbContext>();
+    db.Database.Migrate();
+}
+
+// =======================
 // MIDDLEWARE
 // =======================
 
@@ -109,7 +122,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "LeaveFlow.Api v1");
-    c.RoutePrefix = "docs"; // /docs
+    c.RoutePrefix = "docs"; // https://service-url/docs
 });
 
 app.UseHttpsRedirection();

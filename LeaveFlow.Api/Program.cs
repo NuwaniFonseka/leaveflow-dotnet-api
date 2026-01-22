@@ -104,13 +104,23 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // =======================
-// APPLY EF CORE MIGRATIONS (REQUIRED FOR CLOUD RUN)
+// APPLY EF CORE MIGRATIONS (SAFE FOR CLOUD RUN)
 // =======================
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<LeaveFlowDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<LeaveFlowDbContext>();
+        db.Database.Migrate();
+        Console.WriteLine("? Database migration applied successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("? Database migration failed");
+        Console.WriteLine(ex.ToString());
+        // DO NOT crash the app — Cloud Run must start
+    }
 }
 
 // =======================

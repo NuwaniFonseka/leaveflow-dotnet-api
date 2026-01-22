@@ -11,7 +11,6 @@ var builder = WebApplication.CreateBuilder(args);
 // ADD SERVICES
 // =======================
 
-// Controllers
 builder.Services.AddControllers();
 
 // DbContext
@@ -22,7 +21,7 @@ builder.Services.AddDbContext<LeaveFlowDbContext>(options =>
 );
 
 // =======================
-// SWAGGER + JWT SUPPORT
+// SWAGGER
 // =======================
 
 builder.Services.AddEndpointsApiExplorer();
@@ -34,7 +33,6 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 
-    // JWT Bearer definition
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -45,7 +43,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Enter: Bearer {your JWT token}"
     });
 
-    // Require JWT globally
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -68,29 +65,33 @@ builder.Services.AddSwaggerGen(options =>
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 
-builder.Services.AddAuthentication(options =>
+var jwtKey = jwtSettings["Key"];
+var jwtIssuer = jwtSettings["Issuer"];
+var jwtAudience = jwtSettings["Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    throw new Exception("JWT Key is missing. Check environment variable Jwt__Key");
+}
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
 
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtSettings["Key"]!)
-        )
-    };
-});
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey)
+            )
+        };
+    });
 
-// Authorization (roles)
 builder.Services.AddAuthorization();
 
 // =======================
@@ -100,14 +101,16 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // =======================
-// MIDDLEWARE PIPELINE
+// MIDDLEWARE
 // =======================
 
-if (app.Environment.IsDevelopment())
+// ENABLE SWAGGER IN CLOUD RUN
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "LeaveFlow.Api v1");
+    c.RoutePrefix = "docs"; // /docs
+});
 
 app.UseHttpsRedirection();
 

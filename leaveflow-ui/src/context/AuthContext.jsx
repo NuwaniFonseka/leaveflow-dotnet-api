@@ -51,18 +51,37 @@ export function AuthProvider({ children }) {
     };
 
     const register = async (email, password, role = 'Employee') => {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, role }),
-        });
+        const apiUrl = import.meta.env.VITE_API_URL;
+        const url = `${apiUrl}/api/auth/register`;
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(error || 'Registration failed');
+        console.log('[AuthContext] Registering user...');
+        console.log('[AuthContext] API URL:', apiUrl);
+        console.log('[AuthContext] Full URL:', url);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, role }),
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error('[AuthContext] Registration failed:', error);
+                throw new Error(error || 'Registration failed');
+            }
+
+            console.log('[AuthContext] Registration successful!');
+            return await response.json();
+        } catch (error) {
+            console.error('[AuthContext] Registration error:', error);
+            console.error('[AuthContext] Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            throw error;
         }
-
-        return await response.json();
     };
 
     const logout = () => {

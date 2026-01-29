@@ -2,6 +2,9 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// Debug: Log the API URL being used
+console.log('[useApi] API_URL:', API_URL);
+
 export function useApi() {
     const { token } = useAuth();
 

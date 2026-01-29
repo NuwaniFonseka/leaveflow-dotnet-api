@@ -14,6 +14,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // =======================
+// CORS CONFIGURATION
+// =======================
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// =======================
 // DATABASE (PostgreSQL - Cloud SQL)
 // =======================
 
@@ -111,15 +125,36 @@ using (var scope = app.Services.CreateScope())
 {
     try
     {
+        var connString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "NOT SET";
+        var safeConnString = System.Text.RegularExpressions.Regex.Replace(
+            connString, 
+            @"Password=[^;]*", 
+            "Password=*****"
+        );
+        Console.WriteLine("[DB] Connection String: " + safeConnString);
+        
         var db = scope.ServiceProvider.GetRequiredService<LeaveFlowDbContext>();
-        db.Database.Migrate();
-        Console.WriteLine("? Database migration applied successfully");
+        
+        Console.WriteLine("[DB] Testing database connection...");
+        var canConnect = db.Database.CanConnect();
+        Console.WriteLine("[DB] Connection test: " + (canConnect ? "SUCCESS" : "FAILED"));
+        
+        if (canConnect)
+        {
+            Console.WriteLine("[DB] Applying migrations...");
+            db.Database.Migrate();
+            Console.WriteLine("[DB] Migration applied successfully");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine("? Database migration failed");
-        Console.WriteLine(ex.ToString());
-        // DO NOT crash the app — Cloud Run must start
+        Console.WriteLine("[DB ERROR] Database connection/migration failed");
+        Console.WriteLine("[DB ERROR] Error Type: " + ex.GetType().Name);
+        Console.WriteLine("[DB ERROR] Error Message: " + ex.Message);
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine("[DB ERROR] Inner Error: " + ex.InnerException.Message);
+        }
     }
 }
 
@@ -127,12 +162,15 @@ using (var scope = app.Services.CreateScope())
 // MIDDLEWARE
 // =======================
 
+// ENABLE CORS - Must be before other middleware
+app.UseCors("AllowFrontend");
+
 // ENABLE SWAGGER IN CLOUD RUN
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "LeaveFlow.Api v1");
-    c.RoutePrefix = "docs"; // https://service-url/docs
+    c.RoutePrefix = "docs";
 });
 
 app.UseHttpsRedirection();

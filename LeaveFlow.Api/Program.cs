@@ -5,6 +5,9 @@ using Microsoft.OpenApi.Models;
 using LeaveFlow.Api.Infrastructure.Data;
 using System.Text;
 
+// Fix for Npgsql 6+ and PostgreSQL timestamp handling
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =======================
